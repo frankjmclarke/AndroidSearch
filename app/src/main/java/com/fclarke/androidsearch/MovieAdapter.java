@@ -11,56 +11,56 @@ import android.widget.TextView;
 import java.util.List;
 
 public class MovieAdapter extends
-        RecyclerView.Adapter<MovieAdapter.ViewHolder> {
+    RecyclerView.Adapter<MovieAdapter.ViewHolder> {
 
-    private List<String> mtList ;
-    public Context mcontext;
-    ViewHolder viewHolder;
+  private List<String> mtList ;
+  public Context mcontext;
+  ViewHolder viewHolder;
 
 
-    public MovieAdapter(List<String> list, Context context) {
+  public MovieAdapter(List<String> list, Context context) {
 
-        mtList = list;
-        mcontext = context;
+    mtList = list;
+    mcontext = context;
+  }
+
+  // Called when RecyclerView needs a new RecyclerView.ViewHolder of the given type to represent an item.
+  @Override
+  public MovieAdapter.ViewHolder onCreateViewHolder(ViewGroup parent,
+                                                    int viewType) {
+    // create a layout
+    View itemLayoutView = LayoutInflater.from(parent.getContext()).inflate(
+        R.layout.list, null);
+
+    viewHolder = new ViewHolder(itemLayoutView);
+    return viewHolder;
+  }
+
+  // Called by RecyclerView to display the data at the specified position.
+  @Override
+  public void onBindViewHolder(final ViewHolder viewHolder, int position ) {
+
+    viewHolder.name.setText(mtList.get(position));
+
+  }
+
+  //Returns the total number of items in the data set hold by the adapter.
+  @Override
+  public int getItemCount() {
+    return mtList.size();
+  }
+
+  // initializes some private fields to be used by RecyclerView.
+  public static class ViewHolder extends RecyclerView.ViewHolder {
+
+    public TextView name;
+
+    public ViewHolder(View itemLayoutView) {
+      super(itemLayoutView);
+
+      name = (TextView) itemLayoutView.findViewById(R.id.name);
+
     }
-
-    // Called when RecyclerView needs a new RecyclerView.ViewHolder of the given type to represent an item.
-    @Override
-    public MovieAdapter.ViewHolder onCreateViewHolder(ViewGroup parent,
-                                                      int viewType) {
-        // create a layout
-        View itemLayoutView = LayoutInflater.from(parent.getContext()).inflate(
-                R.layout.list, null);
-
-        viewHolder = new ViewHolder(itemLayoutView);
-        return viewHolder;
-    }
-
-    // Called by RecyclerView to display the data at the specified position.
-    @Override
-    public void onBindViewHolder(final ViewHolder viewHolder, int position ) {
-
-        viewHolder.name.setText(mtList.get(position));
-
-    }
-
-    //Returns the total number of items in the data set hold by the adapter.
-    @Override
-    public int getItemCount() {
-        return mtList.size();
-    }
-
-    // initializes some private fields to be used by RecyclerView.
-    public static class ViewHolder extends RecyclerView.ViewHolder {
-
-        public TextView name;
-
-        public ViewHolder(View itemLayoutView) {
-            super(itemLayoutView);
-
-            name = (TextView) itemLayoutView.findViewById(R.id.name);
-
-        }
-    }
+  }
 
 }

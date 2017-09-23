@@ -11,11 +11,18 @@ Example API Request
 https://api.themoviedb.org/3/movie/550?api_key=4396e889509cf7a204ee60bf1ccee4da
  */
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
+import android.widget.ListView;
 import android.widget.SearchView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -25,27 +32,40 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
+import java.net.InetAddress;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
   private RecyclerView mRecyclerView;
-  public SearchView search;
+  public SearchView searchView;
   private List<String> movieList = new ArrayList<String>();
   MovieAdapter mAdapter;
   static String API_KEY = "4396e889509cf7a204ee60bf1ccee4da";
   static ArrayList<String> posters;
-  static boolean sortByPop;
+  static ArrayList<MovieResult> results;
+
+  static int width;
+  private Context ctx = this;
+  static final String TAG ="MAIN";
+
+  public boolean isNetworkAvailable() {
+    ConnectivityManager connectivityManager = (ConnectivityManager) this.getSystemService(Context.CONNECTIVITY_SERVICE);
+    NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+    return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+  }
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
-    search = (SearchView) findViewById(R.id.search);
+    searchView = (SearchView) findViewById(R.id.search_view);
     mRecyclerView = (RecyclerView) findViewById(R.id.recyclerview);
     try {
       createlist();  // in this method, Create a movieList of items.
@@ -58,53 +78,27 @@ public class MainActivity extends AppCompatActivity {
     // call the adapter with argument movieList of items and context.
     mAdapter = new MovieAdapter(movieList, this);
     mRecyclerView.setAdapter(mAdapter);
-    search.setOnQueryTextListener(listener); // call the QuerytextListner.
+    searchView.setOnQueryTextListener(listener); // call the QuerytextListner.
+  }
+
+  @Override
+  public void onStart() {
+    super.onStart();
+    this.setTitle("Most Popular Movies");
+
+
   }
 
   // this method is used to create movieList of items.
   public void createlist() throws IOException {
 
-    posters = new ArrayList(Arrays.asList(getPathsFromAPI(sortByPop)));
-    movieList.add("Volkswagen Vento");
-    movieList.add("Hyundai Xcent");
-    movieList.add("Maruti Swift");
-    movieList.add("Hyundai i20");
-    movieList.add("Ford Fiesta Classic");
-    movieList.add("Chevrolet Beat");
-    movieList.add("Maruti Alto");
-    movieList.add("Toyota Etios");
-    movieList.add("Toyota Innova");
-    movieList.add("Mahindra Scorpio");
-    movieList.add("Maruti Wagon R");
-    movieList.add("Ford Figo");
-/*
-        List<NameValuePair> params = new ArrayList<NameValuePair>();
-        params.add(new BasicNameValuePair("api_key", API_KEY));
-        params.add(new BasicNameValuePair("page", "3"));
-        JSONObject jsonObject = jsonParser.MakeHTTPRequest(GET_MOVIES_URL, "GET", params);
 
+    movieList.add("PlaceHolder");
 
-    URL url = new URL("http://api.themoviedb.org/3/movie/550?api_key=7b5e30851a9285340e78c201c4e4ab99");
-    HttpURLConnection con = (HttpURLConnection) url.openConnection();
-    con.setDoOutput(true);
-    con.setRequestMethod("GET");
-    con.setRequestProperty("Content-Type", "application/json");
-    System.out.println(con.getResponseMessage());
+    MyTask job = new MyTask();
+    job.execute("Jack+Reacher");
 
-    BufferedReader br = new BufferedReader(new InputStreamReader((con.getInputStream())));
-
-    String output;
-    System.out.println("Output from Server .... \n");
-    while ((output = br.readLine()) != null) {
-      System.out.println(output);
-    }
-    */
   }
-
-    /* this is the Seerach QuerttextListner.
-       this method filter the movieList data with a matching string,
-       hence provides user an easy way to find the information he needs.
-     */
 
   SearchView.OnQueryTextListener listener = new SearchView.OnQueryTextListener() {
     @Override
@@ -135,7 +129,15 @@ public class MainActivity extends AppCompatActivity {
     }
   };
 
-  public String[] getPathsFromAPI(boolean sortbypop) {
+  public String stringify(InputStream stream) throws IOException, UnsupportedEncodingException {
+    Reader reader = null;
+    reader = new InputStreamReader(stream, "UTF-8");
+    BufferedReader bufferedReader = new BufferedReader(reader);
+    return bufferedReader.readLine();
+  }
+
+  public ArrayList<MovieResult>  getPathsFromAPI(String query) {
+
     while (true) {
       HttpURLConnection urlConnection = null;
       BufferedReader reader = null;
@@ -143,24 +145,29 @@ public class MainActivity extends AppCompatActivity {
 
       try {
         String urlString = null;
-        if (sortbypop) {
-          urlString = "http://api.themoviedb.org/3/discover/movie?sort_by=popularity.desc&api_key=" + API_KEY;
-        } else {
-          urlString = "http://api.themoviedb.org/3/discover/movie?sort_by=vote_average.desc&vote_count.gte=500&api_key=" + API_KEY;
-        }
+
+        urlString = "https://api.themoviedb.org/3/search/movie?api_key=" + API_KEY + "&query="+query;
         URL url = new URL(urlString);
         urlConnection = (HttpURLConnection) url.openConnection();
         urlConnection.setRequestMethod("GET");
+        //urlConnection.setReadTimeout(10000 );//milliseconds
+        //urlConnection.setConnectTimeout(15000); // milliseconds
+        //urlConnection.addRequestProperty("Accept", "application/json");
+        //urlConnection.setDoInput(true);
         urlConnection.connect();
+        int responseCode = urlConnection.getResponseCode();
+        Log.d(TAG, "The response code is: " + responseCode + " " + urlConnection.getResponseMessage());
 
         //Read the input stream into a String
         InputStream inputStream = urlConnection.getInputStream();
         StringBuffer buffer = new StringBuffer();
         if (inputStream == null) {
+          Log.i(TAG, "inputStream null");
           return null;
         }
         reader = new BufferedReader(new InputStreamReader(inputStream));
-        String line;
+        String line = "";
+        Log.i("getPathsFromAPI", line);
         while ((line = reader.readLine()) != null) {
           buffer.append(line + "\n");
         }
@@ -168,13 +175,16 @@ public class MainActivity extends AppCompatActivity {
           return null;
         }
         JSONResult = buffer.toString();
+        //Log.i("getPathsFromAPI ",JSONResult);
 
         try {
+          Log.i("getPathsFromAPI ", JSONResult);
           return getPathsFromJSON(JSONResult);
         } catch (JSONException e) {
           return null;
         }
       } catch (Exception e) {
+        Log.i("getPathsFromAPI ", e.toString());
         continue;
       } finally {
         if (urlConnection != null) {
@@ -187,23 +197,73 @@ public class MainActivity extends AppCompatActivity {
           }
         }
       }
+    }
+  }
 
+  public ArrayList<MovieResult> getPathsFromJSON(String JSONStringParam) throws JSONException {
+
+    String streamAsString = JSONStringParam;
+    ArrayList<MovieResult> results = new ArrayList<MovieResult>();
+    try {
+      JSONObject jsonObject = new JSONObject(streamAsString);
+      JSONArray array = (JSONArray) jsonObject.get("results");
+      for (int i = 0; i < array.length(); i++) {
+        JSONObject jsonMovieObject = array.getJSONObject(i);
+        MovieResult.Builder movieBuilder = MovieResult.newBuilder(
+            Integer.parseInt(jsonMovieObject.getString("id")),
+            jsonMovieObject.getString("title"))
+            .setBackdropPath(jsonMovieObject.getString("backdrop_path"))
+            .setOriginalTitle(jsonMovieObject.getString("original_title"))
+            .setPopularity(jsonMovieObject.getString("popularity"))
+            .setPosterPath(jsonMovieObject.getString("poster_path"))
+            .setReleaseDate(jsonMovieObject.getString("release_date"));
+        results.add(movieBuilder.build());
+      }
+    } catch (JSONException e) {
+      System.err.println(e);
+      Log.d(TAG, "Error parsing JSON. String was: " + streamAsString);
+    }
+    return results;
+  }
+
+  private class MyTask extends AsyncTask<String, Void, String> {
+    boolean isNetworkError = false;
+
+    @Override
+    protected String doInBackground(String[] params) {
+
+      if (!isNetworkAvailable(ctx) || !isInternetAvailable()) {
+        isNetworkError = true;
+        return "";
+      }
+
+      posters = new ArrayList(Arrays.asList(getPathsFromAPI(params[0])));
+      return "some message";
+    }
+
+    @Override
+    protected void onPostExecute(String message) {
+      if (isNetworkError)
+        Toast.makeText(ctx, "No Internet connection", Toast.LENGTH_LONG).show();
+      movieList.clear();
+      //TODO add images and text to MovieAdapter
+      movieList.add("PlaceHolder2");
 
     }
   }
 
-  public String[] getPathsFromJSON (String JSONStringParam)throws JSONException {
+  public boolean isNetworkAvailable(Context context) {
+    final ConnectivityManager connectivityManager = ((ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE));
+    return connectivityManager.getActiveNetworkInfo() != null && connectivityManager.getActiveNetworkInfo().isConnected();
+  }
 
-    JSONObject JSONString = new JSONObject(JSONStringParam);
-
-    JSONArray moviesArray = JSONString.getJSONArray("results");
-    String[] result = new String[moviesArray.length()];
-
-    for (int i = 0; i < moviesArray.length(); i++) {
-      JSONObject movie = moviesArray.getJSONObject(i);
-      String moviePath = movie.getString("poster_path");
-      result[i] = moviePath;
+  public boolean isInternetAvailable() {
+    try {
+      final InetAddress address = InetAddress.getByName("www.google.com");
+      return !address.equals("");
+    } catch (UnknownHostException e) {
+      // Log error
     }
-    return result;
+    return false;
   }
 }
